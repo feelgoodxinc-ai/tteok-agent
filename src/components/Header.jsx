@@ -6,6 +6,7 @@ const titles = {
   '/sales': '매출·마케팅 전략',
   '/inventory': '재고·공급망 관리',
   '/competitor': '경쟁사 분석',
+  '/expert': '전문가 회의',
   '/agent': 'AI 에이전트',
 }
 

@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, TrendingUp, Package, Search, Bot } from 'lucide-react'
+import { LayoutDashboard, TrendingUp, Package, Search, Bot, Users } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: '대시보드' },
   { to: '/sales', icon: TrendingUp, label: '매출·마케팅' },
   { to: '/inventory', icon: Package, label: '재고·공급망' },
   { to: '/competitor', icon: Search, label: '경쟁사 분석' },
+  { to: '/expert', icon: Users, label: '전문가 회의' },
   { to: '/agent', icon: Bot, label: 'AI 에이전트' },
 ]
 

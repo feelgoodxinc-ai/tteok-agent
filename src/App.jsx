@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import SalesMarketing from './pages/SalesMarketing.jsx'
 import Inventory from './pages/Inventory.jsx'
 import CompetitorAnalysis from './pages/CompetitorAnalysis.jsx'
+import ExpertPanel from './pages/ExpertPanel.jsx'
 import AIAgent from './pages/AIAgent.jsx'
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/sales" element={<SalesMarketing />} />
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/competitor" element={<CompetitorAnalysis />} />
+              <Route path="/expert" element={<ExpertPanel />} />
               <Route path="/agent" element={<AIAgent />} />
             </Routes>
           </main>
