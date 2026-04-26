@@ -4,9 +4,9 @@ import Sidebar from './components/Sidebar.jsx'
 import Header from './components/Header.jsx'
 import ApiKeyModal from './components/ApiKeyModal.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import SalesMarketing from './pages/SalesMarketing.jsx'
-import Inventory from './pages/Inventory.jsx'
-import CompetitorAnalysis from './pages/CompetitorAnalysis.jsx'
+import NaverPlace from './pages/NaverPlace.jsx'
+import KeywordResearch from './pages/KeywordResearch.jsx'
+import ReviewStrategy from './pages/ReviewStrategy.jsx'
 import ExpertPanel from './pages/ExpertPanel.jsx'
 import AIAgent from './pages/AIAgent.jsx'
 
@@ -34,9 +34,9 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/sales" element={<SalesMarketing />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/competitor" element={<CompetitorAnalysis />} />
+              <Route path="/naver-place" element={<NaverPlace />} />
+              <Route path="/keywords" element={<KeywordResearch />} />
+              <Route path="/reviews" element={<ReviewStrategy />} />
               <Route path="/expert" element={<ExpertPanel />} />
               <Route path="/agent" element={<AIAgent />} />
             </Routes>

@@ -3,26 +3,26 @@ import { Users, Send, Loader2 } from 'lucide-react'
 import { callClaude } from '../lib/anthropic.js'
 
 const EXPERTS = [
-  { key: '퍼포먼스 마케터', icon: '🎯', bg: 'bg-red-50', border: 'border-red-200', title: 'text-red-700', sub: 'text-red-400', desc: '광고·전환율·매출 중심' },
-  { key: '브랜드 디렉터',   icon: '🎨', bg: 'bg-purple-50', border: 'border-purple-200', title: 'text-purple-700', sub: 'text-purple-400', desc: '포지셔닝·스토리·감성' },
-  { key: '유통 전략가',     icon: '📦', bg: 'bg-blue-50', border: 'border-blue-200', title: 'text-blue-700', sub: 'text-blue-400', desc: '채널 설계·물량 증가' },
-  { key: '소비자 인사이트 분석가', icon: '🔍', bg: 'bg-green-50', border: 'border-green-200', title: 'text-green-700', sub: 'text-green-400', desc: '고객 심리·구매 트리거' },
-  { key: 'CFO',             icon: '💰', bg: 'bg-amber-50', border: 'border-amber-200', title: 'text-amber-700', sub: 'text-amber-400', desc: '비용·마진·리스크', wide: true },
-  { key: '통합 실행 전략',  icon: '⚡', bg: 'bg-slate-800', border: 'border-slate-700', title: 'text-white', sub: 'text-slate-400', desc: '최종 실행 계획', wide: true, dark: true },
+  { key: '네이버 SEO 전문가', icon: '🔍', bg: 'bg-red-50', border: 'border-red-200', title: 'text-red-700', sub: 'text-red-400', desc: '알고리즘·상위노출 로직' },
+  { key: '로컬 마케터',       icon: '📍', bg: 'bg-purple-50', border: 'border-purple-200', title: 'text-purple-700', sub: 'text-purple-400', desc: '용산·이태원 상권 전략' },
+  { key: '콘텐츠 전략가',     icon: '✍️', bg: 'bg-blue-50', border: 'border-blue-200', title: 'text-blue-700', sub: 'text-blue-400', desc: '블로그·SNS 콘텐츠 기획' },
+  { key: '고객경험 디자이너', icon: '⭐', bg: 'bg-green-50', border: 'border-green-200', title: 'text-green-700', sub: 'text-green-400', desc: '리뷰 유도·재방문 전략' },
+  { key: '데이터 분석가',     icon: '📊', bg: 'bg-amber-50', border: 'border-amber-200', title: 'text-amber-700', sub: 'text-amber-400', desc: '키워드·광고 효율 분석', wide: true },
+  { key: '통합 실행 전략',    icon: '⚡', bg: 'bg-slate-800', border: 'border-slate-700', title: 'text-white', sub: 'text-slate-400', desc: '최종 실행 계획', wide: true, dark: true },
 ]
 
-const WIDE_KEYS = new Set(['CFO', '통합 실행 전략'])
+const WIDE_KEYS = new Set(['데이터 분석가', '통합 실행 전략'])
 
 const QUICK_Q = [
-  '카카오톡딜 매출을 2배로 늘리려면?',
-  '21년 브랜드 스토리를 마케팅에 활용하는 방법은?',
-  '월 1000만원 달성을 위한 우선순위는?',
-  '신규 고객 유입 채널 전략은?',
-  '공동구매 진행 시 주의할 점은?',
-  '오프라인 채널 진출 타이밍은?',
+  '"용산 떡볶이" 1위를 위한 단계별 전략은?',
+  '리뷰 수를 3개월 안에 2배로 늘리는 방법은?',
+  '월 광고 예산 20만원을 가장 효율적으로 쓰는 방법은?',
+  '체험단 모집부터 포스팅까지 전략을 짜줘',
+  '경쟁 매장과 차별화할 수 있는 포인트는?',
+  '네이버 플레이스 저장수 빠르게 늘리는 방법은?',
 ]
 
-const MARKERS = ['[퍼포먼스 마케터]', '[브랜드 디렉터]', '[유통 전략가]', '[소비자 인사이트 분석가]', '[CFO]', '[통합 실행 전략]']
+const MARKERS = ['[네이버 SEO 전문가]', '[로컬 마케터]', '[콘텐츠 전략가]', '[고객경험 디자이너]', '[데이터 분석가]', '[통합 실행 전략]']
 
 function parseResponse(text) {
   const sections = []
@@ -80,20 +80,21 @@ export default function ExpertPanel() {
 
   return (
     <div className="space-y-5">
-      {/* Input */}
       <div className="bg-white rounded-xl p-6 border border-slate-200">
         <div className="flex items-center gap-2 mb-1">
           <Users size={18} className="text-red-600" />
-          <h3 className="font-semibold text-slate-800">전문가 회의</h3>
+          <h3 className="font-semibold text-slate-800">네이버플레이스 전문가 회의</h3>
         </div>
-        <p className="text-xs text-slate-400 mb-4">퍼포먼스 마케터 · 브랜드 디렉터 · 유통 전략가 · 소비자 인사이트 분석가 · CFO — 5인이 각자의 관점으로 답변합니다</p>
+        <p className="text-xs text-slate-400 mb-4">
+          네이버 SEO · 로컬 마케터 · 콘텐츠 전략가 · 고객경험 디자이너 · 데이터 분석가 — 5인이 각자의 관점으로 전략을 제시합니다
+        </p>
 
         <div className="flex gap-2 mb-3">
           <input
             value={question}
             onChange={e => setQuestion(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && ask()}
-            placeholder="비즈니스 질문을 입력하세요..."
+            placeholder="현선이네 네이버플레이스 전략을 질문하세요..."
             disabled={loading}
             className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
           />
@@ -117,7 +118,6 @@ export default function ExpertPanel() {
         </div>
       </div>
 
-      {/* Sessions */}
       {sessions.map(session => (
         <div key={session.id} className="space-y-3">
           <div className="flex items-center gap-3">
@@ -129,7 +129,7 @@ export default function ExpertPanel() {
           {!session.sections ? (
             <div className="bg-white rounded-xl p-10 border border-slate-200 flex items-center justify-center gap-3 text-slate-500 text-sm">
               <Loader2 size={18} className="animate-spin text-red-600" />
-              전문가 5인이 검토 중입니다...
+              5인의 전문가가 전략을 검토하고 있습니다...
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -144,7 +144,7 @@ export default function ExpertPanel() {
       {sessions.length === 0 && (
         <div className="bg-white rounded-xl p-14 border border-slate-200 text-center text-slate-400">
           <Users size={40} className="mx-auto mb-3 opacity-20" />
-          <p className="text-sm">질문을 입력하면 5인의 전문가가 각자의 관점으로 답변합니다.</p>
+          <p className="text-sm">질문을 입력하면 5인의 전문가가 각자의 관점으로 전략을 제시합니다.</p>
           <p className="text-xs mt-1 text-slate-300">위의 빠른 질문을 눌러 바로 시작해보세요.</p>
         </div>
       )}

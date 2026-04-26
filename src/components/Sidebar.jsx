@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, TrendingUp, Package, Search, Bot, Users } from 'lucide-react'
+import { LayoutDashboard, MapPin, Search, Star, Users, Bot } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: '대시보드' },
-  { to: '/sales', icon: TrendingUp, label: '매출·마케팅' },
-  { to: '/inventory', icon: Package, label: '재고·공급망' },
-  { to: '/competitor', icon: Search, label: '경쟁사 분석' },
+  { to: '/naver-place', icon: MapPin, label: '네이버플레이스' },
+  { to: '/keywords', icon: Search, label: '키워드 분석' },
+  { to: '/reviews', icon: Star, label: '리뷰·블로그 전략' },
   { to: '/expert', icon: Users, label: '전문가 회의' },
   { to: '/agent', icon: Bot, label: 'AI 에이전트' },
 ]
@@ -17,9 +17,13 @@ export default function Sidebar() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">🌶️</span>
           <div>
-            <h1 className="font-bold text-sm">떡볶이 전략</h1>
-            <p className="text-xs text-slate-400 mt-0.5">AI 에이전트</p>
+            <h1 className="font-bold text-sm">현선이네</h1>
+            <p className="text-xs text-slate-400 mt-0.5">플레이스 마케팅 AI</p>
           </div>
+        </div>
+        <div className="mt-3 flex items-center gap-1.5">
+          <MapPin size={11} className="text-slate-500" />
+          <span className="text-xs text-slate-500">서울 용산구</span>
         </div>
       </div>
       <nav className="flex-1 p-3 space-y-0.5">
