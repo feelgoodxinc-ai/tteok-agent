@@ -1,0 +1,26 @@
+name: Kakao Setup
+
+# 카카오 연결 1회 설정: 카카오 로그인 후 이동한 주소를 붙여넣고 실행하면
+# 리프레시 토큰을 GitHub Secret에 저장하고 테스트 카톡을 보냅니다.
+on:
+  workflow_dispatch:
+    inputs:
+      redirected_url:
+        description: '카카오 로그인 후 주소창의 주소 전체 (https://localhost/?code=...)'
+        required: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Exchange code and save token
+        env:
+          KAKAO_AUTH_INPUT: ${{ inputs.redirected_url }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: node scripts/kakao-setup.mjs

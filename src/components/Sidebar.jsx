@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, TrendingUp, Package, Search, Bot, Users } from 'lucide-react'
+import { LayoutDashboard, TrendingUp, Package, Search, Bot, Users, LineChart } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: '대시보드' },
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/competitor', icon: Search, label: '경쟁사 분석' },
   { to: '/expert', icon: Users, label: '전문가 회의' },
   { to: '/agent', icon: Bot, label: 'AI 에이전트' },
+  { to: '/invest', icon: LineChart, label: '투자전략 팀' },
 ]
 
 export default function Sidebar() {
