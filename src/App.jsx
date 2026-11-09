@@ -9,6 +9,7 @@ import Inventory from './pages/Inventory.jsx'
 import CompetitorAnalysis from './pages/CompetitorAnalysis.jsx'
 import ExpertPanel from './pages/ExpertPanel.jsx'
 import AIAgent from './pages/AIAgent.jsx'
+import InvestmentTeam from './pages/InvestmentTeam.jsx'
 
 export default function App() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('claude_api_key') || '')
@@ -39,6 +40,7 @@ export default function App() {
               <Route path="/competitor" element={<CompetitorAnalysis />} />
               <Route path="/expert" element={<ExpertPanel />} />
               <Route path="/agent" element={<AIAgent />} />
+              <Route path="/invest" element={<InvestmentTeam />} />
             </Routes>
           </main>
         </div>

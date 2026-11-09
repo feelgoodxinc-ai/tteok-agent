@@ -8,6 +8,7 @@ const titles = {
   '/competitor': '경쟁사 분석',
   '/expert': '전문가 회의',
   '/agent': 'AI 에이전트',
+  '/invest': '투자전략 팀 · 장 마감 브리핑',
 }
 
 export default function Header({ onChangeKey }) {
