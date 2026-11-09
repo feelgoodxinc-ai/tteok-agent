@@ -7,7 +7,8 @@ const PRICE = { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5, search: 0.0
 const MAX_CONTINUATIONS = 5
 
 function getClient() {
-  const apiKey = localStorage.getItem('claude_api_key')
+  // Node(자동 실행) 환경: 환경변수 / 브라우저: localStorage
+  const apiKey = globalThis.process?.env?.ANTHROPIC_API_KEY || globalThis.localStorage?.getItem('claude_api_key')
   if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
   return new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
 }
