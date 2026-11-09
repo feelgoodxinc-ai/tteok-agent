@@ -238,7 +238,11 @@ export default function InvestmentTeam() {
             <LineChart size={18} className="text-red-600" />
             <h3 className="font-semibold text-slate-800">장 마감 분석 브리핑</h3>
           </div>
-          <p className="text-xs text-slate-400 mb-4">애널리스트 {activeAnalysts.length}인 병렬 리서치 → 리스크 매니저 검증 → CIO 종합</p>
+          <p className="text-xs text-slate-400 mb-2">애널리스트 {activeAnalysts.length}인 병렬 리서치 → 리스크 매니저 검증 → CIO 종합</p>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">오닐 · CAN SLIM / 분산일 / 손절 -7~8%</span>
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">드러켄밀러 · 유동성 / 18개월 / 확신 베팅</span>
+          </div>
 
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
@@ -355,8 +359,8 @@ export default function InvestmentTeam() {
             <LineChart size={40} className="mx-auto mb-3 opacity-20" />
             <p className="text-sm">장 마감 후 '분석 시작'을 누르면 투자전략 팀이 브리핑을 작성합니다.</p>
             <p className="text-xs mt-2 text-slate-300 leading-relaxed">
-              매크로 · 수급/섹터 · 기술적 분석 · 뉴스/이벤트 · 포트폴리오 애널리스트가 동시에 조사하고,<br />
-              리스크 매니저가 반대 논리를 검증한 뒤 CIO가 내일 전략을 정리합니다.
+              오닐의 시장 방향(M)·주도주 규율과 드러켄밀러의 유동성·확신 베팅 관점으로<br />
+              애널리스트가 동시에 조사하고, 리스크 매니저 검증 후 CIO가 내일 전략을 정리합니다.
             </p>
           </div>
         )}
