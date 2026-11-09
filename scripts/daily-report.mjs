@@ -29,7 +29,13 @@ function requireEnv(names) {
 function loadProfile() {
   // GitHub Actions Variables의 INVEST_PROFILE(JSON)로 투자자 프로필 설정
   const defaults = { market: 'KR', risk: '중립', horizon: '스윙(수주~수개월)', holdings: '', watchlist: '', memo: '' }
-  try { return { ...defaults, ...JSON.parse(process.env.INVEST_PROFILE || '{}') } } catch { return defaults }
+  try {
+    return { ...defaults, ...JSON.parse(process.env.INVEST_PROFILE || '{}') }
+  } catch {
+    // 개인 정보 노출 방지를 위해 값은 출력하지 않음
+    console.warn('⚠️ INVEST_PROFILE 형식 오류(따옴표·중괄호·쉼표 확인) — 보유/관심 종목 없이 기본값으로 실행합니다.')
+    return defaults
+  }
 }
 
 const extractSummary = (md) =>
