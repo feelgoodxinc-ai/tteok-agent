@@ -1,0 +1,36 @@
+name: Kakao Notify (Notion Poll)
+
+# Claude 예약 실행이 노션에 리포트를 저장하면, 이 워크플로가 주기적으로 노션을 확인해
+# 오늘자 모닝 브리핑/장 마감 페이지를 카톡으로 보낸다. (Claude가 워크플로를 호출할 필요 없음)
+# 중복 발송은 노션 DB의 '카톡발송' 체크박스로 막는다. 휴장일은 스크립트가 건너뛴다.
+on:
+  schedule:
+    # 모닝 브리핑: KST 월~금 07:40~09:45  (= UTC 일~목 22:40~23:45, 월~금 00:00~00:45)
+    - cron: '*/15 22-23 * * 0-4'
+    - cron: '*/15 0 * * 1-5'
+    # 장 마감: KST 월~금 15:45~18:00 (= UTC 월~금 06:45~09:00)
+    - cron: '*/15 6-8 * * 1-5'
+  workflow_dispatch:
+
+concurrency:
+  group: kakao-notify-poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Send pending reports to KakaoTalk
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: node scripts/notify-from-notion.mjs
