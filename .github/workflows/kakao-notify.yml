@@ -1,0 +1,37 @@
+name: Kakao Notify
+
+# Claude 예약 실행(구독)이 리포트를 노션에 저장한 뒤 호출하는 카톡 배달 전용 워크플로
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: '카톡 본문 (200자 이내)'
+        required: true
+      url:
+        description: '버튼 링크 (노션 페이지 주소)'
+        required: false
+        default: 'https://www.notion.so'
+      button:
+        description: '버튼 문구'
+        required: false
+        default: '리포트 보기'
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Send KakaoTalk
+        env:
+          NOTIFY_MESSAGE: ${{ inputs.message }}
+          NOTIFY_URL: ${{ inputs.url }}
+          NOTIFY_BUTTON: ${{ inputs.button }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: node scripts/notify.mjs

@@ -1,13 +1,8 @@
 name: Daily Market Report
 
-# GitHub Actions cron은 UTC 기준이며 혼잡 시 5~20분 지연될 수 있어, 도착 시각을 감안해 일찍 시작합니다.
-#   모닝 브리핑: 07:30 KST 시작 → 약 8시 도착  (UTC 22:30, 전날 일~목)
-#   장 마감 분석: 15:45 KST 시작 → 약 16시 도착 (UTC 06:45, 월~금)
-# 휴장일(주말·scripts/krx-holidays.json)은 스크립트가 자동으로 건너뜁니다.
+# ⚠️ 예약 실행은 Claude 구독 예약(Routines, routines/*.md)으로 이전했습니다 — API 크레딧 미사용.
+# 이 워크플로는 API 크레딧으로 돌리는 비상용 수동 실행만 남겨둡니다.
 on:
-  schedule:
-    - cron: '30 22 * * 0-4'
-    - cron: '45 6 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:

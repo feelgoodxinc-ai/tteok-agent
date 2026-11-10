@@ -33,13 +33,13 @@ async function accessToken() {
 }
 
 /** 카카오톡 '나에게 보내기' (텍스트 템플릿: 본문 최대 200자 + 링크 버튼) */
-export async function sendToMe(text, url) {
+export async function sendToMe(text, url, buttonTitle = '리포트 보기') {
   const token = await accessToken()
   const template = {
     object_type: 'text',
     text: text.length > 200 ? text.slice(0, 197) + '...' : text,
     link: { web_url: url, mobile_web_url: url },
-    button_title: '리포트 보기',
+    button_title: buttonTitle,
   }
   const res = await fetch('https://kapi.kakao.com/v2/api/talk/memo/default/send', {
     method: 'POST',

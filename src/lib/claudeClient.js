@@ -78,6 +78,9 @@ export async function runAgent({ system, prompt, messages, webSearch = false, ma
     } catch (e) {
       if (e instanceof Anthropic.AuthenticationError) throw new Error('API 키가 유효하지 않습니다.')
       if (e instanceof Anthropic.RateLimitError) throw new Error('요청 한도 초과 — 잠시 후 다시 시도하세요.')
+      if (e instanceof Anthropic.BadRequestError && /credit balance/i.test(e.message)) {
+        throw new Error('Claude API 크레딧(잔액) 부족 — platform.claude.com → Billing에서 충전하세요.')
+      }
       if (e instanceof Anthropic.APIError) throw new Error(`API 오류 ${e.status ?? ''}: ${e.message}`)
       throw e
     }
