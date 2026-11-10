@@ -59,6 +59,20 @@ async function main() {
     console.log(`${date}: 한국거래소 휴장일 — 건너뜀`)
     return
   }
+  // 예약 실행이 크게 지연되면(예: 새벽에 '장 마감' 실행) 엉뚱한 데이터로 리포트가 나오므로 건너뜀
+  const hourKST = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
+  const WINDOW = { morning: [6, 11], close: [15, 22] } // [시작시, 종료시) KST
+  const [from, to] = WINDOW[mode]
+  if (!force && (hourKST < from || hourKST >= to)) {
+    const msg = `⏰ ${KIND[mode]} 예약 실행이 너무 늦게 시작돼(${hourKST}시) 건너뛰었어요. 필요하면 GitHub에서 수동 실행하세요.`
+    console.log(msg)
+    if (!dryRun && process.env.KAKAO_REFRESH_TOKEN) {
+      const run = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/workflows/daily-report.yml`
+      await sendToMe(msg, run, '수동 실행하기').catch(() => {})
+    }
+    return
+  }
+
   requireEnv(['ANTHROPIC_API_KEY', ...(dryRun ? [] : ['NOTION_TOKEN', 'NOTION_DATABASE_ID', 'KAKAO_REST_API_KEY', 'KAKAO_REFRESH_TOKEN'])])
 
   const profile = loadProfile()
@@ -123,7 +137,7 @@ main().catch(async (e) => {
       const run = process.env.GITHUB_RUN_ID
         ? `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
         : 'https://github.com'
-      await sendToMe(`⚠️ ${KIND[mode]} 생성 실패\n${e.message}`, run)
+      await sendToMe(`⚠️ ${KIND[mode]} 생성 실패\n${e.message.slice(0, 150)}`, run, '실행 기록 보기')
     } catch { /* 알림 실패는 무시 */ }
   }
   process.exit(1)
