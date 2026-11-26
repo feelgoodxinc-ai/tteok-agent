@@ -14,13 +14,16 @@ class FakeKIS:
     """150종목. i번째 종목 거래대금 = (150-i)×20억 → 상위 100개 중 1,000억 이상은 (150-i)×20e8 ≥ 1e11 ⇒ i ≤ 100 (101종목) → 상위 100으로 잘림.
     투자자 금액은 백만원 단위로 내려준다(단위 자동 판별 검증)."""
 
-    def __init__(self, date=AS_OF):
-        self.calls, self.date = 0, date
+    def __init__(self, date=AS_OF, fail_vr=False):
+        self.calls, self.date, self.fail_vr, self.vr_calls = 0, date, fail_vr, []
         self.universe = [{"code": f"{100000 + i * 10:06d}", "name": f"종목{i}", "market": "KOSPI" if i % 2 else "KOSDAQ", "group": "ST"} for i in range(150)]
 
     def index_bars(self, code, start, end, max_pages=1):
         self.calls += 1
         return [{"date": "20261125", "close": 2600}, {"date": self.date, "close": 2610}]
+
+    def get_with_headers(self, path, tr_id, params, retries=6, tr_cont=""):
+        return self.get(path, tr_id, params), {}
 
     def _i(self, code):
         return (int(code) - 100000) // 10
@@ -35,12 +38,28 @@ class FakeKIS:
                                    "mrkt_warn_cls_code": "00", "rprs_mrkt_kor_name": "KOSPI"}}
             i = self._i(code)
             value = (150 - i) * 20e8
-            close = 10000 + i
+            close = 3000 + i * 700
             chg = "29.99" if i == 7 else "1.5"
             return {"output": {"stck_prpr": str(close), "acml_vol": str(int(value / close)), "acml_tr_pbmn": str(int(value)),
                                "prdy_ctrt": chg, "bstp_kor_isnm": ["전기전자", "운수장비", "화학"][i % 3], "lstn_stcn": "50000000",
                                "w52_hgpr": str(close), "w52_hgpr_date": self.date if i < 5 else "20260101",
                                "mrkt_warn_cls_code": "02" if i == 3 else "00", "mang_issu_cls_code": "N"}}
+        if tr_id == "FHPST01710000":  # 거래량순위(거래금액순)
+            if self.fail_vr:
+                raise collect.KISError("FHPST01710000 실패: 테스트")
+            assert params["FID_BLNG_CLS_CODE"] == "3"
+            sec = {"0013": 0, "0015": 1, "0008": 2}.get(code)
+            p1 = float(params["FID_INPUT_PRICE_1"] or 0); p2 = float(params["FID_INPUT_PRICE_2"] or 1e12)
+            rows = []
+            for u in self.universe:
+                i = self._i(u["code"]); close = 3000 + i * 700; value = (150 - i) * 20e8
+                if (sec is None or i % 3 == sec) and p1 <= close < p2:
+                    rows.append({"mksc_shrn_iscd": u["code"], "hts_kor_isnm": u["name"], "stck_prpr": str(close), "acml_vol": str(int(value / close))})
+            if code == "0000":  # ETF는 유니버스 밖이라 걸러져야 한다
+                rows.append({"mksc_shrn_iscd": "069500", "hts_kor_isnm": "ETF", "stck_prpr": "40000", "acml_vol": "50000000"})
+            rows.sort(key=lambda x: -float(x["stck_prpr"]) * float(x["acml_vol"]))
+            self.vr_calls.append((code, params["FID_INPUT_PRICE_1"], params["FID_INPUT_PRICE_2"]))
+            return {"output": rows[:30]}
         if tr_id == "FHKST130000C0":  # 상하한가 포착
             return {"output": [{"mksc_shrn_iscd": "123455", "hts_kor_isnm": "우선주A", "prdy_ctrt": "29.97"},
                                {"mksc_shrn_iscd": "100070", "hts_kor_isnm": "종목7", "prdy_ctrt": "29.99"}]}
@@ -62,9 +81,10 @@ class FakeKIS:
             return {"output1": mk_head, "output2": [
                 {"bstp_cls_code": code, "hts_kor_isnm": "종합", "bstp_nmix_prpr": "2610", "bstp_nmix_prdy_ctrt": "0.38"},
                 {"bstp_cls_code": "0013", "hts_kor_isnm": "전기전자", "bstp_nmix_prpr": "30000", "bstp_nmix_prdy_ctrt": "2.1", "acml_tr_pbmn_rlim": "35.2", "ascn_issu_cnt": "20", "down_issu_cnt": "10", "uplm_issu_cnt": "1"},
+                {"bstp_cls_code": "0008", "hts_kor_isnm": "화학", "bstp_nmix_prpr": "5000", "bstp_nmix_prdy_ctrt": "0.5", "acml_tr_pbmn_rlim": "10.0", "ascn_issu_cnt": "10", "down_issu_cnt": "10", "uplm_issu_cnt": "0"},
                 {"bstp_cls_code": "0015", "hts_kor_isnm": "운수장비", "bstp_nmix_prpr": "2000", "bstp_nmix_prdy_ctrt": "-1.2", "acml_tr_pbmn_rlim": "8.1", "ascn_issu_cnt": "5", "down_issu_cnt": "30", "uplm_issu_cnt": "0"}]}
         if tr_id == "FHPTJ04040000":  # 시장·업종 투자자
-            idx = {"0001": "2610", "1001": "2610", "0013": "30000", "0015": "9999"}[code]  # 0015는 지수 불일치 → 채택 안 됨
+            idx = {"0001": "2610", "1001": "2610", "0013": "30000", "0008": "5000", "0015": "9999"}[code]  # 0015는 지수 불일치 → 채택 안 됨
             return {"output": [{"stck_bsop_date": self.date, "bstp_nmix_prpr": idx, "bstp_nmix_prdy_ctrt": "0.38",
                                 "prsn_ntby_tr_pbmn": "-523400", "frgn_ntby_tr_pbmn": "612000", "orgn_ntby_tr_pbmn": "-88600",
                                 "scrt_ntby_tr_pbmn": "-30000", "fund_ntby_tr_pbmn": "12000", "etc_corp_ntby_tr_pbmn": "1000"}]}
@@ -122,6 +142,23 @@ def test_threshold_cuts_below_1000eok():
     assert all(s["value"] >= 1e11 for s in out["top_value"])
 
 
+def test_discovery_complete_and_efficient():
+    fake = FakeKIS()
+    out = collect.collect(fake, fake.universe, AS_OF, log=lambda m: None)
+    assert out["discovery"]["method"] == "volume_rank"
+    assert not out["discovery"]["unresolved"], out["discovery"]
+    # 정답: 유니버스 i=0..100 중 거래대금 상위 100 = i 0..99 (i=100은 정확히 1,000억이지만 101번째)
+    assert {s["code"] for s in out["top_value"]} == {f"{100000 + i * 10:06d}" for i in range(100)}
+    assert all(s["code"] != "069500" for s in out["top_value"]), "ETF는 제외"
+    assert any(p1 for _, p1, _ in fake.vr_calls), "30위까지 1,000억 이상인 업종은 가격대로 쪼개야 한다"
+    assert out["universe_swept"] < 150, out["universe_swept"]  # 전 종목이 아니라 후보만 현재가 조회
+    full = FakeKIS(fail_vr=True)
+    out2 = collect.collect(full, full.universe, AS_OF, log=lambda m: None)
+    assert out2["discovery"]["method"] == "full_sweep" and any("대체" in e for e in out2["errors"])
+    assert [s["code"] for s in out2["top_value"]] == [s["code"] for s in out["top_value"]], "두 방식 결과가 같아야 한다"
+    print(f"calls: volume_rank {out['api_calls']} vs full_sweep {out2['api_calls']}")
+
+
 def test_nearest_unit():
     assert collect.nearest_unit(1.2) == 1.0
     assert collect.nearest_unit(1.25e6) == 1e6
@@ -130,6 +167,6 @@ def test_nearest_unit():
 
 
 if __name__ == "__main__":
-    for fn in (test_nearest_unit, test_threshold_cuts_below_1000eok, test_collect):
+    for fn in (test_nearest_unit, test_threshold_cuts_below_1000eok, test_collect, test_discovery_complete_and_efficient):
         fn()
         print("ok", fn.__name__)

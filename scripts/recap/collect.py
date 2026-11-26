@@ -104,6 +104,62 @@ def get_sectors(cli, market):
     return head, (rows if isinstance(rows, list) else [rows])
 
 
+VR_BANDS = [("0", "10000"), ("10000", "50000"), ("50000", "200000"), ("200000", "99999999")]
+VR_PAGE = 30
+
+
+def get_volume_rank(cli, iscd, p1="", p2="", max_pages=3):
+    """거래량순위 FHPST01710000, 거래금액순(FID_BLNG_CLS_CODE=3). 연속 조회(tr_cont M/F)가 있으면 이어서 받는다."""
+    params = {"FID_COND_MRKT_DIV_CODE": "J", "FID_COND_SCR_DIV_CODE": "20171", "FID_INPUT_ISCD": iscd,
+              "FID_DIV_CLS_CODE": "0", "FID_BLNG_CLS_CODE": "3", "FID_TRGT_CLS_CODE": "111111111",
+              "FID_TRGT_EXLS_CLS_CODE": "0000000000", "FID_INPUT_PRICE_1": p1, "FID_INPUT_PRICE_2": p2,
+              "FID_VOL_CNT": "", "FID_INPUT_DATE_1": ""}
+    rows, cont = [], ""
+    for _ in range(max_pages):
+        body, hdr = cli.get_with_headers(f"{Q}/volume-rank", "FHPST01710000", params, tr_cont=cont)
+        out = body.get("output") or []
+        out = out if isinstance(out, list) else [out]
+        rows += out
+        if out and (hdr.get("tr_cont") or "") in ("M", "F"):
+            cont = "N"
+        else:
+            break
+    parsed = []
+    for x in rows:
+        c = (x.get("mksc_shrn_iscd") or "").strip()
+        close, vol = num(x.get("stck_prpr")), num(x.get("acml_vol"))
+        if c:
+            parsed.append({"code": c, "name": x.get("hts_kor_isnm"), "approx_value": (close or 0) * (vol or 0)})
+    return parsed
+
+
+def discover_by_volume_rank(cli, sector_codes, info):
+    """전체 + 업종별 거래금액 상위를 모은다. 한 조회가 30건을 꽉 채우고 30번째도 1,000억 이상이면 가격대로 쪼갠다.
+    거래대금은 종가×거래량 근사로 비교한다(단위 문제 없이 비교하기 위해)."""
+    found = {}
+
+    def run(iscd, p1="", p2=""):
+        rows = get_volume_rank(cli, iscd, p1, p2)
+        info["queries"] += 1
+        for r_ in rows:
+            prev = found.get(r_["code"])
+            if not prev or r_["approx_value"] > prev["approx_value"]:
+                found[r_["code"]] = r_
+        return rows
+
+    def truncated(rows):
+        return len(rows) >= VR_PAGE and min(r_["approx_value"] for r_ in rows) >= MIN_VALUE
+
+    run("0000")  # 전체 상위 30(업종 코드가 없는 종목 보완용). 쪼개기는 업종 단위에서만 한다
+    for iscd in dict.fromkeys(sector_codes):
+        rows = run(iscd)
+        if truncated(rows):
+            for p1, p2 in VR_BANDS:
+                if truncated(run(iscd, p1, p2)):
+                    info["unresolved"].append(f"{iscd}:{p1}-{p2}")
+    return found
+
+
 def get_market_investors(cli, market, sector_code, date):
     out = cli.get(f"{Q}/inquire-investor-daily-by-market", "FHPTJ04040000", {
         "FID_COND_MRKT_DIV_CODE": "U", "FID_INPUT_ISCD": sector_code, "FID_INPUT_DATE_1": date,
@@ -228,23 +284,50 @@ def collect(cli, universe, today, limit=0, log=log):
     if not as_of:
         raise KISError("지수 일봉 조회 실패 — 기준일을 정할 수 없습니다.")
 
-    # 1) 전 종목 현재가 스윕 → 거래대금 순위
     if limit:
         universe = universe[:limit]
     meta = {u["code"]: u for u in universe}
+
+    # 0) 업종 목록·시세 (대상 탐색과 업종 분석에 함께 씀)
+    sector_cache = {}
+    for mk in ("KOSPI", "KOSDAQ"):
+        try:
+            sector_cache[mk] = get_sectors(cli, mk)
+        except KISError as e:
+            status["errors"].append(f"{mk} 업종 시세 실패: {e}")
+            sector_cache[mk] = ({}, [])
+    sector_codes = [x.get("bstp_cls_code") for mk in sector_cache for x in sector_cache[mk][1]
+                    if x.get("bstp_cls_code") and x.get("bstp_cls_code") not in ("0001", "1001")]
+
+    # 1) 대상 탐색: 거래량순위(거래금액순) API로 전체·업종별 상위 30을 모아 후보를 만든다.
+    #    한 조회의 30번째까지 1,000억 이상이면 가격대별로 다시 나눠 빠지는 종목이 없게 한다.
+    #    탐색이 실패하면 전 종목 현재가 스윕으로 대체한다(느림).
     prices, failed = {}, []
-    for i, u in enumerate(universe, 1):
+    discovery = {"method": "volume_rank", "queries": 0, "unresolved": []}
+    try:
+        found = discover_by_volume_rank(cli, sector_codes, discovery)
+        if not found:
+            raise KISError("거래량순위 결과가 비어 있음")
+        cand = sorted((f for f in found.values() if f["code"] in meta and f["approx_value"] >= MIN_VALUE * 0.8),
+                      key=lambda f: f["approx_value"], reverse=True)[:TOP_N + 40]
+        sweep = [meta[f["code"]] for f in cand]
+        log(f"거래량순위 {discovery['queries']}회 조회 → 후보 {len(sweep)}종목")
+    except KISError as e:
+        status["errors"].append(f"거래량순위 탐색 실패 → 전 종목 스윕으로 대체: {e}")
+        discovery["method"] = "full_sweep"
+        sweep = universe
+    for i, u in enumerate(sweep, 1):
         try:
             prices[u["code"]] = parse_price(u["code"], u, get_price(cli, u["code"]))
         except Exception as e:  # 한 종목 오류로 전체가 멈추지 않게
             failed.append({"code": u["code"], "error": str(e)[:120]})
         if i % 300 == 0:
-            log(f"현재가 {i}/{len(universe)} · 호출 {cli.calls}")
-    p_unit = calibrate_price_unit(list(prices.values()))
+            log(f"현재가 {i}/{len(sweep)} · 호출 {cli.calls} · 속도 {cli.rate}/초")
+    p_unit = calibrate_price_unit(list(prices.values())) or 1.0
     for p in prices.values():
         p["value"] = p["value_raw"] * p_unit if p["value_raw"] is not None else None
 
-    # 2) 상한가: 상하한가 포착(우선주 포함) + 스윕 등락률
+    # 2) 상한가: 상하한가 포착(우선주 포함) + 조회한 종목의 등락률
     lu_codes = []
     try:
         for x in get_limit_ups(cli):
@@ -255,10 +338,10 @@ def collect(cli, universe, today, limit=0, log=log):
         status["errors"].append(f"상하한가 포착 실패: {e}")
     lu_codes += [c for c, p in prices.items() if (p["change_pct"] or 0) >= LIMIT_UP_PCT]
     lu_codes = list(dict.fromkeys(lu_codes))
-    for c in lu_codes:  # 유니버스 밖(우선주 등)은 현재가를 따로 조회
+    for c in lu_codes:  # 후보 밖(우선주·소형주 등)은 현재가를 따로 조회
         if c not in prices:
             try:
-                p = parse_price(c, {"name": None}, get_price(cli, c))
+                p = parse_price(c, meta.get(c, {"name": None}), get_price(cli, c))
                 p["value"] = p["value_raw"] * p_unit if p["value_raw"] is not None else None
                 prices[c] = p
             except KISError as e:
@@ -268,7 +351,7 @@ def collect(cli, universe, today, limit=0, log=log):
                     key=lambda p: p["value"], reverse=True)[:TOP_N]
     top_codes = [p["code"] for p in ranked]
     target = list(dict.fromkeys(lu_codes + top_codes))
-    log(f"기준일 {as_of} · 스윕 {len(prices)} · 상한가 {len(lu_codes)} · 1,000억 이상 {len(top_codes)} · 대상 {len(target)}")
+    log(f"기준일 {as_of} · 현재가 {len(prices)} · 상한가 {len(lu_codes)} · 1,000억 이상 {len(top_codes)} · 대상 {len(target)} · 호출 {cli.calls}")
 
     # 3) 대상 종목 투자자·거래원
     inv_pairs, details = [], {}
@@ -317,13 +400,9 @@ def collect(cli, universe, today, limit=0, log=log):
     market, sectors = {}, []
     for mk, code in (("KOSPI", "0001"), ("KOSDAQ", "1001")):
         m = {}
-        try:
-            head, rows = get_sectors(cli, mk)
-            m["summary"] = parse_sector(head, mk) if head else None
-            secs = [parse_sector(x, mk) for x in rows if x.get("bstp_cls_code") and x.get("bstp_cls_code") != code]
-        except KISError as e:
-            status["errors"].append(f"{mk} 업종 시세 실패: {e}")
-            secs = []
+        head, rows = sector_cache.get(mk, ({}, []))
+        m["summary"] = parse_sector(head, mk) if head else None
+        secs = [parse_sector(x, mk) for x in rows if x.get("bstp_cls_code") and x.get("bstp_cls_code") != code]
         try:
             m["investors"] = market_flow(get_market_investors(cli, mk, code, as_of))
         except KISError as e:
@@ -352,11 +431,14 @@ def collect(cli, universe, today, limit=0, log=log):
                   "market_investor_value": "원값(API) — 단위 미확인, KRX 인용 보도 수치와 대조해 판별",
                   "sector_value": "원값(API) — 단위 미확인"},
         "universe_swept": len(prices), "sweep_failed": len(failed), "api_calls": cli.calls,
+        "discovery": discovery, "throttled": getattr(cli, "throttled", None), "final_rate_per_sec": getattr(cli, "rate", None),
         "market": market, "sectors": sectors,
         "limit_ups": limit_ups, "top_value": top,
         "sector_flows_from_top": aggregate_by_sector(top),
     }
-    if len(failed) > 0.1 * max(1, len(universe)):
+    if discovery["unresolved"]:
+        out["errors"].append(f"거래량순위 30위 한도에 걸려 일부 구간을 끝까지 확인하지 못함: {discovery['unresolved'][:5]} — 상위 100에서 일부 누락 가능")
+    if len(failed) > 0.1 * max(1, len(prices) + len(failed)):
         out["status"] = "incomplete"
         out["errors"].append(f"현재가 조회 실패 {len(failed)}종목")
     else:
@@ -374,7 +456,7 @@ def pct(x):
 
 def write_md(o, path):
     L = [f"# 시황 데이터 — 기준일 {o.get('as_of')}",
-         f"상태 {o['status']} · 스윕 {o['universe_swept']}종목(실패 {o['sweep_failed']}) · API {o['api_calls']}회 · 기준: {o['criteria']['top_value']}",
+         f"상태 {o['status']} · 대상 탐색 {o.get('discovery', {}).get('method')} · 현재가 조회 {o['universe_swept']}종목(실패 {o['sweep_failed']}) · API {o['api_calls']}회 · 기준: {o['criteria']['top_value']}",
          f"출처: {o['data_source']}", ""]
     if o["errors"]:
         L += ["> ⚠ " + e for e in o["errors"]] + [""]
