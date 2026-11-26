@@ -11,7 +11,7 @@ on:
         required: false
         default: "0"
   schedule:
-    - cron: "52 6 * * 1-5"   # UTC 06:52 = KST 15:52
+    - cron: "40 6 * * 1-5"   # UTC 06:52 = KST 15:52
 
 permissions:
   contents: write
