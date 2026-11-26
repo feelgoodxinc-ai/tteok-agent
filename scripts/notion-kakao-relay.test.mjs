@@ -55,6 +55,17 @@ const quiet = () => {}
   assert.equal((await run('09:50')).alerts, 0)
   assert.equal((await run('17:50', [page('m', '모닝 브리핑', 'x', true)])).alerts, 1)
   assert.match(sent.at(-1)[0], /장 마감 미생성/)
+  // 시황정리: 19:30~19:44 회차에만, 있으면 경고 없음
+  assert.equal((await run('19:35')).alerts, 1)
+  assert.match(sent.at(-1)[0], /시황정리 미생성/)
+  assert.equal((await run('19:35', [page('r', '시황정리', 'x', true)])).alerts, 0)
+}
+
+// 4-1) 시황정리 페이지 발송 형식
+{
+  const n = fakeNotion([page('g7', '시황정리', '반도체→조선 순환, 상한가 3')]); const sent = []
+  await relay({ notion: n, send: async (...a) => sent.push(a), now: at('2026-11-26', '18:20'), isTradingDay: trading, log: quiet })
+  assert.match(sent[0][0], /^🧭 11\/26 시황정리\n\n반도체→조선/)
 }
 
 // 5) 카톡발송 속성이 DB에 없으면 중단 (중복 발송 방지)
@@ -91,4 +102,4 @@ const quiet = () => {}
   await assert.rejects(n2.pagesOn('2026-11-26'), /401/)
 }
 
-console.log('7 relay tests passed')
+console.log('8 relay tests passed')

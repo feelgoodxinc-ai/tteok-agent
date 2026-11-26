@@ -16,6 +16,7 @@ const SENT_PROP = '카톡발송'
 const KINDS = {
   '모닝 브리핑': { icon: '🌅', deadline: '09:30' },
   '장 마감': { icon: '🌆', deadline: '17:45' },
+  '시황정리': { icon: '🧭', deadline: '19:30' },
 }
 const ALERT_WINDOW_MIN = 15 // 마감 시각부터 15분 안에 실행된 회차에서만 ⚠️ 알림 (예약 회차 1번)
 const REPO_URL = 'https://github.com/feelgoodxinc-ai/tteok-agent'
