@@ -1,0 +1,42 @@
+name: Kakao Relay
+
+# 노션 📈 투자전략 리포트 DB를 15분마다 확인해, 오늘 리포트 중 '카톡발송' 체크가 꺼진 페이지를 카톡으로 보낸다.
+# (Claude 예약 실행의 GitHub 앱은 Actions 실행 권한이 없어 봇이 kakao-notify.yml을 직접 부를 수 없기 때문)
+# 모닝: KST 08:20~09:35 / 장 마감: KST 16:20~17:50, 평일. GitHub 예약 실행은 몇~수십 분 늦어질 수 있다.
+on:
+  schedule:
+    - cron: "20,35,50 23 * * 0-4"   # KST 08:20 08:35 08:50 (월~금)
+    - cron: "5,20,35 0 * * 1-5"     # KST 09:05 09:20 09:35
+    - cron: "20,35,50 7 * * 1-5"    # KST 16:20 16:35 16:50
+    - cron: "5,20,35,50 8 * * 1-5"  # KST 17:05 17:20 17:35 17:50
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "테스트용 날짜 YYYY-MM-DD (비우면 오늘 KST)"
+        required: false
+        default: ""
+
+concurrency:
+  group: kakao-relay
+  cancel-in-progress: false
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Test relay logic
+        run: node scripts/notion-kakao-relay.test.mjs
+      - name: Relay Notion → KakaoTalk
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          RELAY_FORCE_DATE: ${{ github.event.inputs.date }}
+        run: node scripts/notion-kakao-relay.mjs
