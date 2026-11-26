@@ -35,12 +35,32 @@ class KISClient:
         self.appsecret = appsecret
         self.base = PAPER_BASE if paper else REAL_BASE
         # 기본 초당 호출 수는 한도보다 낮게 잡는다 (실전 15, 모의 4).
-        self.min_interval = 1.0 / (rps or (4.0 if paper else 15.0))
+        # 유량 제한(EGW00201)을 받으면 간격을 1.5배로 늘리고, 200회 연속 성공하면 조금씩 되돌린다(AIMD).
+        self.base_interval = 1.0 / (rps or (4.0 if paper else 15.0))
+        self.min_interval = self.base_interval
+        self.max_interval = 1.0
         self.timeout = timeout
         self.session = requests.Session()
         self._last_call = 0.0
+        self._ok_streak = 0
         self.calls = 0
+        self.throttled = 0
         self.token = self._issue_token()
+
+    @property
+    def rate(self) -> float:
+        return round(1.0 / self.min_interval, 2)
+
+    def _on_throttle(self):
+        self.throttled += 1
+        self._ok_streak = 0
+        self.min_interval = min(self.min_interval * 1.5, self.max_interval)
+
+    def _on_success(self):
+        self._ok_streak += 1
+        if self._ok_streak >= 200 and self.min_interval > self.base_interval:
+            self.min_interval = max(self.base_interval, self.min_interval / 1.2)
+            self._ok_streak = 0
 
     @classmethod
     def from_env(cls) -> "KISClient":
@@ -70,16 +90,22 @@ class KISClient:
             time.sleep(wait)
         self._last_call = time.monotonic()
 
-    def get(self, path: str, tr_id: str, params: dict, retries: int = 5) -> dict:
+    def get(self, path: str, tr_id: str, params: dict, retries: int = 6) -> dict:
+        return self.get_with_headers(path, tr_id, params, retries=retries)[0]
+
+    def get_with_headers(self, path: str, tr_id: str, params: dict, retries: int = 6,
+                         tr_cont: str = "") -> tuple[dict, dict]:
+        """응답 본문과 헤더를 함께 돌려준다(연속 조회 tr_cont 확인용)."""
         headers = {
             "content-type": "application/json; charset=utf-8",
             "authorization": f"Bearer {self.token}",
             "appkey": self.appkey,
             "appsecret": self.appsecret,
             "tr_id": tr_id,
+            "tr_cont": tr_cont,
             "custtype": "P",
         }
-        backoff = 1.0
+        backoff = 0.5
         last_err = ""
         for _ in range(retries):
             self._throttle()
@@ -90,7 +116,7 @@ class KISClient:
             except requests.RequestException as e:
                 last_err = f"네트워크 오류: {e}"
                 time.sleep(backoff)
-                backoff = min(backoff * 2, 16)
+                backoff = min(backoff * 2, 8)
                 continue
             body = {}
             try:
@@ -98,20 +124,21 @@ class KISClient:
             except ValueError:
                 pass
             msg_cd = str(body.get("msg_cd", ""))
-            if msg_cd == "EGW00201" or r.status_code == 429:  # 유량 초과
+            if msg_cd == "EGW00201" or r.status_code == 429:  # 유량 초과 → 속도를 낮추고 짧게 쉰 뒤 재시도
                 last_err = "EGW00201 유량 제한"
-                time.sleep(backoff)
-                backoff = min(backoff * 2, 16)
+                self._on_throttle()
+                time.sleep(self.min_interval * 2)
                 continue
             if r.status_code >= 500:
-                last_err = f"HTTP {r.status_code}"
+                last_err = f"HTTP {r.status_code} {msg_cd} {body.get('msg1', '')}".strip()
                 time.sleep(backoff)
-                backoff = min(backoff * 2, 16)
+                backoff = min(backoff * 2, 8)
                 continue
             if r.status_code != 200 or str(body.get("rt_cd", "0")) != "0":
                 raise KISError(f"{tr_id} {params.get('FID_INPUT_ISCD')} 실패: "
                                f"HTTP {r.status_code} {msg_cd} {body.get('msg1', '')}".strip())
-            return body
+            self._on_success()
+            return body, {k.lower(): v for k, v in r.headers.items()}
         raise KISError(f"{tr_id} {params.get('FID_INPUT_ISCD')} 재시도 초과: {last_err}")
 
     # ---------------------------------------------------------------- 시세 조회
